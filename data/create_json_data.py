@@ -12,11 +12,19 @@ for i in range(len(countries)):
 # Zamjeni sve NaN sa 0
 df.fillna(0, inplace=True)
 
-# Dodaj stupac za id drzave
-df["Country"] = countries
-
 # Ukloni stupac Date
 df = df.drop(["Date"], axis=1)
+
+# Spoji macOS i OS X stupce u jedan
+df["macOS"] = df[["OS X", "macOS"]].sum(axis=1)
+df = df.drop(["OS X"], axis=1)
+
+# Zamjeni Chrome OS stupac sa ChromeOS stupcem zbog razmaka
+df["ChromeOS"] = df["Chrome OS"]
+df = df.drop(["Chrome OS"], axis=1)
+
+# Dodaj id države u dataframe
+df["Country"] = countries
 
 json_data = df.to_json(orient="records")
 
