@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+  	<style>
+    	.axis {
+      		font: 10px sans-serif;
+    	}
+
+    	.axis path,
+    	.axis line {
+      		fill: none;
+      		stroke: #000;
+      		shape-rendering: crispEdges;
+    	}
+  	</style>
+
+	<script src="https://d3js.org/d3.v3.min.js"></script>
+	<script src="https://d3js.org/topojson.v1.min.js"></script>
+</head>
+<body>
+
+	<input type="radio" id="Windows-radio" name="osType" checked onclick="showSelectedFilter('Windows')">
+	<label for="Windows-radio">Windows</label><br>
+	<input type="radio" id="macOS-radio" name="osType" onclick="showSelectedFilter('macOS')">
+	<label for="macOS-radio">macOS</label><br>
+	<input type="radio" id="Linux-radio" name="osType" onclick="showSelectedFilter('Linux')">
+	<label for="Linux-radio">Linux</label><br> 
+	<input type="radio" id="ChromeOS-radio" name="osType" onclick="showSelectedFilter('ChromeOS')">
+	<label for="ChromeOS-radio">ChromeOS</label> 
+
+	<div id="mainDiv" style="width: 1600px"></div>
+
+	<script>
+
+		// ##############
+		// ## Variabls ##
+		// ##############
+
+		var width = 800;
+		var height = 700;
+		var countryClicked = false;
+		var mapDiv = d3.select("#mainDiv").append("div")
+					.style("max-width", `${width}px`)
+					.style("max-height", `${height}px`)
+					.style("overflow", "hidden")
+					.attr("id", "mapDiv");
+		var pieDiv = d3.select("#mainDiv").append("div")
+					.style("max-width", `${width}px`)
+					.style("max-height", `${height/2}px`)
+					.style("overflow", "hidden")
+					.attr("id", "pieDiv");
+		var barDiv = d3.select("#mainDiv").append("div")
+					.style("max-width", `${2*width}px`)
+					.style("max-height", `${height/2}px`)
+					.style("overflow", "hidden")
+					.attr("id", "barDiv");
+		var data;
+		var osTypes = [ "Windows", "macOS", "Linux", "ChromeOS", "Other", "Unknown" ];
+		var currOsType = "Windows";
+		var colors = {
+			Windows: "#000099",
+			macOS: "#995500",
+			Linux: "#009900",
+			ChromeOS: "#990000",
+			Other: "#990099",
+			Unknown: "#404040"
+		}
+		var colorScales = {
+			Windows: d3.scale.linear().domain([0, 100]).range(["#e0e0e0", colors.Windows]),
+			macOS: d3.scale.linear().domain([0, 100]).range(["#e0e0e0", colors.macOS]),
+			Linux: d3.scale.linear().domain([0, 100]).range(["#e0e0e0", colors.Linux]),
+			ChromeOS: d3.scale.linear().domain([0, 100]).range(["#e0e0e0", colors.ChromeOS]),
+			Other: d3.scale.linear().domain([0, 100]).range(["#e0e0e0", colors.Other]),
+			Unknown: d3.scale.linear().domain([0, 100]).range(["#e0e0e0", colors.Unknown])
+		};
+
+		// ###############
+		// ## Functions ##
+		// ###############
+
+		const createMap = (osType) => {
+			var projection = d3.geo.mercator()
+								.center([20, 55])
+								.scale(550)
+								.translate([width/2, height/2]);
+
+			var path = d3.geo.path()
+						.projection(projection);
+
+			var svg = mapDiv.append("svg")
+						.attr("width", width)
+						.attr("height", height)
+						.attr("id", "Map")
+						.attr("class", "Map")
+						.style("background", "transparent");	
+
+			d3.json("europe.json", (error, europe) => {
+				var mapData = topojson.feature(europe, europe.objects.europe);
+
+				// Remove Israel and Faoe Islands from data
+				mapData.features = mapData.features.filter((country) => {
+					return (country.id != "IL" && country.id != "FO");
+				});
+
+				var countries = svg.selectAll("path.country")
+								.data(mapData.features)
+								.enter()
+								.append("path")
+								.attr("class", "country")
+								.attr("id", (d) => { return d.id; })
+								.attr("d", path)
+								.attr("onclick", function(d){ return `showCountryInfo('${d.id}')`; })
+								.attr("onmouseover", function(d){ return `highlightBar('${d.id}')`; })
+								.attr("onmouseout", "resetBarChart()")
+								.style("fill", (d) => { 
+									var index = data.findIndex((dataElement) => { return dataElement.Country == d.id; })
+									return colorScales[osType](data[index][osType]) 
+								})
+								.style("stroke", "white")
+								.style("stroke-width", 1)
+								.style("stroke-opacity", 1);
+			});
+		}
+
+		const createPieChart = (countryID) => {
+				var countryObj = data.filter((dataElement) => { return dataElement.Country == countryID })[0];
+				var outerRadius = 150;
+				var innerRadius = 100;
+				
+				var countryData = [];
+				for(var i=0; i<osTypes.length; i++){
+					countryData.push({ name: osTypes[i], value: countryObj[osTypes[i]] });
+				}
+	
+				var arc = d3.svg.arc()
+							.innerRadius(innerRadius)
+							.outerRadius(outerRadius);
+
+				var pie = d3.layout.pie().sort(null).value(function(d) { return d.value; });
+
+				var svg = pieDiv.append("svg")
+								.attr("width", width)
+								.attr("height", height);
+
+				var pieArcs = svg.selectAll("g.pie")
+								.data(pie(countryData))
+								.enter()
+								.append("g")
+								.attr("class", "pie")
+								.attr("transform", "translate(" + (width / 2) + ", " + (height/4) + ")");
+
+				pieArcs.append("path")
+						.attr("fill", function(d, i) { return colors[osTypes[i]]; })
+						.transition()
+						.delay(function(d, i){
+							return i * 850;
+						})
+						.duration(function(d) { return 750; })
+						.attrTween("d", function(d) {
+							var i = d3.interpolate(d.startAngle, d.endAngle);
+							return function(t) {
+								d.endAngle = i(t);
+								return arc(d);
+							}
+						});
+		}
+
+		const createBarChart = (osType) => {
+			    var margin = { top: 40, bottom: 70, left: 40, right: 20 };
+			    var chartWidth = 2*width - margin.left - margin.right;
+			    var chartHeight = height/2 - margin.top - margin.bottom;
+			    var barPadding = 4;
+			    var barWidth = chartWidth / data.length - barPadding;
+				data.sort((a, b) => { return a[osType] - b[osType]; }).reverse();
+	
+			    var x = d3.scale.ordinal()
+						  .rangeBands([0, chartWidth])
+					      .domain(data.map(function(d) { return d.Country; }));
+
+			    var y = d3.scale.linear()
+						  .range([chartHeight, 0])
+					      .domain([0, 100]);
+
+			    var svg = barDiv.append("svg")
+						      	.attr("width", chartWidth + margin.left + margin.right)
+						      	.attr("height", chartHeight + margin.bottom + margin.top)
+						      	.attr("id", "Barchart")
+								.append("g")
+						      	.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+			    var barchart = svg.selectAll("rect")
+							      	.data(data)
+							      	.enter()
+							      	.append("rect")
+									.attr("id", function(d) { return `${d.Country}-Bar` })
+							      	.attr("x", function(d) { return x(d.Country); })
+							      	.attr("width", barWidth)
+							      	.attr("fill", colors[osType])
+							      	.attr("y", chartHeight)
+									.attr("height", 0);
+
+				barchart.transition()
+						.duration(1000)
+						.attr("y", function(d) { return y(d[osType]); })
+						.attr("height", function(d) { return chartHeight - y(d[osType]); });
+
+
+			    var xAxis = d3.svg.axis()
+								.scale(x)
+								.orient("bottom");
+
+			    var yAxis = d3.svg.axis()
+								.scale(y)
+								.orient("left")
+						      	.ticks(20);
+
+			    svg.append("g")
+			      	.attr("class", "x axis")
+			      	.attr("transform", "translate(0," + chartHeight + ")")
+   				  	.call(xAxis);
+
+				svg.append("text")
+			    	.attr("x", chartWidth / 2)
+			    	.attr("y", chartHeight + (margin.bottom / 2))
+					.attr("dy", ".71em")
+			      	.style("text-anchor", "middle")
+			      	.text("Country");
+
+			    svg.append("g")
+			      	.attr("class", "y axis")
+			      	.call(yAxis);
+
+			    svg.append("text")
+			      	.attr("transform", "rotate(-90)")
+			      	.attr("x", 0-(chartHeight / 2))
+			      	.attr("y", 0-margin.left)
+				  	.attr("dy", ".71em")
+			      	.style("text-anchor", "middle")
+			      	.text("Usage");
+
+		}
+
+		const showSelectedFilter = (osType) => {
+			mapDiv.select("svg").selectAll("path.country")
+								.style("fill", (d) => { 
+									var index = data.findIndex((dataElement) => { return dataElement.Country == d.id; })
+									return colorScales[osType](data[index][osType]) 
+								})
+								.style("stroke", "white")
+								.style("stroke-width", 1)
+								.style("stroke-opacity", 1);
+			document.getElementById("barDiv").innerHTML = "";
+			createBarChart(osType);
+			currOsType = osType;
+		}
+
+		const zoomOnCountry = (countryID) => {
+			var country = data.find((d) => { return d.Country == countryID });
+			var path = document.getElementById(countryID);
+			var heightScale = height/path.getBBox().height;
+			var widthScale = width/path.getBBox().width;
+			var scale = 1;
+			if(heightScale < widthScale){
+				scale = heightScale;
+			}
+			else{
+				scale = widthScale;
+			}
+			var x, y;
+			x = (width/2) - path.getBBox().x - (path.getBBox().width/2);
+			y = (height/2) - path.getBBox().y - (path.getBBox().height/2);
+			var svg = d3.select("#Map");
+			svg.transition()
+				.duration(1000)
+				.attr('transform', "scale("+scale*0.95+") "+"translate("+x+","+y+")");
+		}
+
+		const zoomOut = () => {
+			var svg = d3.select("#Map");
+			svg.transition()
+				.duration(1000)
+				.attr("transform", "");
+		}
+
+		const highlightBar = (countryID) => {
+			var svg = d3.select("#Barchart");
+			svg.selectAll("rect")
+				.attr("fill", "#dddddd");
+			d3.select(`#${countryID}-Bar`)
+				.attr("fill", colors[currOsType]);
+		}
+
+		const resetBarChart = () => {
+			var svg = d3.select("#Barchart");
+			svg.selectAll("rect")
+				.attr("fill", colors[currOsType]);
+		}
+
+		const showCountryInfo = (countryID) => {
+			if(!countryClicked){
+				zoomOnCountry(countryID);
+				createPieChart(countryID);
+			}
+			else{
+				zoomOut();
+				document.getElementById("pieDiv").innerHTML = "";
+			}
+			countryClicked = !countryClicked;
+		}
+
+		const getJsonData = async () => {
+			var response = await fetch("os_europe_data.json");
+			var responsePromise = response.json();
+			return responsePromise;
+		}
+
+		const render = async () => {
+			var responseData = getJsonData();
+			await responseData.then(
+				(value) => { data = value; },
+				(error) => { console.log(error); }
+			);
+			createMap("Windows");
+			createBarChart("Windows");
+		}
+
+		// ###############
+		// ## Main code ##
+		// ###############
+
+		render();
+	
+	</script>
+</body>
+</html>
