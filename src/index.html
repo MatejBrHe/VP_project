@@ -2,6 +2,28 @@
 <html>
 <head>
   	<style>
+		* {
+			font-family: Monospace;
+			font-weight: bold;
+		}
+
+		body {
+			background-color: #eeeeee;
+		}
+
+		div {
+			padding: 2px;
+		}
+
+		h1 {
+			font-size: 2.5rem;
+		}
+
+		#mapDiv, #pieDiv, #barDiv, #radioDiv, #titleDiv {
+			background-color: #ffffff;
+			border-radius: 20px;
+		}
+
     	.axis {
       		font: 10px sans-serif;
     	}
@@ -12,32 +34,146 @@
       		stroke: #000;
       		shape-rendering: crispEdges;
     	}
+
+		.country:hover, .radio:hover, .bar:hover {
+			cursor: pointer;
+		}
+
+		#radioDiv {
+			width: 1400px;
+			display: grid;
+			grid-template-columns: auto auto auto auto;
+		}
+
+		#radioDiv > div {
+			margin: auto;
+		}
+
+		#mainDiv {
+			width: 1400px;
+			margin: 0 auto;
+			display: grid;
+			grid-template-columns: auto auto;
+			gap: 10px;
+		}
+
+		#titleDiv {
+			grid-column: 1 / span 2;
+			text-align: center;
+		}
+
+		#radioDiv {
+			grid-column: 1 / span 2;
+		}
+
+		#mapDiv {
+			grid-column: 1 / span 1;
+		}
+
+		#pieDiv {
+			grid-column: 2 / span 1;
+		}
+
+		#barDiv {
+			grid-column: 1 / span 2;
+		}
+
+		.pieTitle {
+			font-size: 2.2rem;
+		}
+
+		label, .labels, .axisText {
+			font-size: 1.3rem;
+		}
+
+		#radioDiv > div {
+			user-select: none;
+		}
+
+		#radioDiv > div > label{
+			margin-left: 25px;
+		}
+
+		.radio {
+			opacity: 0;
+			position: absolute;
+			z-index: 2;
+		}
+
+		.customRadio {
+			display: block;
+			position: absolute;
+			height: 17px;
+			width: 17px;
+			background-color: #dddddd;
+			border: 0px solid transparent;
+			border-radius: 50%;
+		}
+
+		#Windows-radio:checked ~ .customRadio {
+			background-color: #073177;
+		}
+
+		#macOS-radio:checked ~ .customRadio {
+			background-color: #c48200;
+		}
+
+		#Linux-radio:checked ~ .customRadio {
+			background-color: #42af09;
+		}
+
+		#ChromeOS-radio:checked ~ .customRadio {
+			background-color: #b30101;
+		}
+
+		.hoverBox {
+			background-color: black;
+			color: white;
+			opacity: 0.8;
+			padding: 5px;
+			border-radius: 5px;
+		}
   	</style>
 
 	<script src="https://d3js.org/d3.v3.min.js"></script>
 	<script src="https://d3js.org/topojson.v1.min.js"></script>
 </head>
 <body>
+	<div id="hoverBox" class="hoverBox" style="display: none"></div>
 
-	<input type="radio" id="Windows-radio" name="osType" checked onclick="showSelectedFilter('Windows')">
-	<label for="Windows-radio">Windows</label><br>
-	<input type="radio" id="macOS-radio" name="osType" onclick="showSelectedFilter('macOS')">
-	<label for="macOS-radio">macOS</label><br>
-	<input type="radio" id="Linux-radio" name="osType" onclick="showSelectedFilter('Linux')">
-	<label for="Linux-radio">Linux</label><br> 
-	<input type="radio" id="ChromeOS-radio" name="osType" onclick="showSelectedFilter('ChromeOS')">
-	<label for="ChromeOS-radio">ChromeOS</label> 
-
-	<div id="mainDiv" style="width: 1600px"></div>
+	<div id="mainDiv">
+		<div id="titleDiv"><h1>OS market share in Europe</h1></div>
+		<div id="radioDiv">	
+			<div>
+				<input type="radio" id="Windows-radio" class="radio" name="osType" onclick="showSelectedFilter('Windows')">
+				<span class="customRadio"></span>
+				<label for="Windows-radio">Windows</label>
+			</div>
+			<div>
+				<input type="radio" id="macOS-radio" class="radio" name="osType" onclick="showSelectedFilter('macOS')">
+				<span class="customRadio"></span>
+				<label for="macOS-radio">macOS</label>
+			</div>
+			<div>
+				<input type="radio" id="Linux-radio" class="radio" name="osType" onclick="showSelectedFilter('Linux')">
+				<span class="customRadio"></span>
+				<label for="Linux-radio">Linux</label>
+			</div>
+			<div> 
+				<input type="radio" id="ChromeOS-radio" class="radio" name="osType" onclick="showSelectedFilter('ChromeOS')">
+				<span class="customRadio"></span>
+				<label for="ChromeOS-radio">ChromeOS</label>
+			</div> 
+		</div>
+	</div>
 
 	<script>
-
 		// ##############
 		// ## Variabls ##
 		// ##############
 
-		var width = 800;
-		var height = 700;
+		var width = 700;
+		var height = 600;
 		var countryClicked = false;
 		var mapDiv = d3.select("#mainDiv").append("div")
 					.style("max-width", `${width}px`)
@@ -46,7 +182,7 @@
 					.attr("id", "mapDiv");
 		var pieDiv = d3.select("#mainDiv").append("div")
 					.style("max-width", `${width}px`)
-					.style("max-height", `${height/2}px`)
+					.style("max-height", `${height}px`)
 					.style("overflow", "hidden")
 					.attr("id", "pieDiv");
 		var barDiv = d3.select("#mainDiv").append("div")
@@ -55,23 +191,26 @@
 					.style("overflow", "hidden")
 					.attr("id", "barDiv");
 		var data;
+		var europeData;
 		var osTypes = [ "Windows", "macOS", "Linux", "ChromeOS", "Other", "Unknown" ];
 		var currOsType = "Windows";
+		var countryArray = [];
 		var colors = {
-			Windows: "#000099",
-			macOS: "#995500",
-			Linux: "#009900",
-			ChromeOS: "#990000",
-			Other: "#990099",
-			Unknown: "#404040"
+			Windows: "#073177",
+			macOS: "#c48200",
+			Linux: "#42af09",
+			ChromeOS: "#b30101",
+			Other: "#e5cb0e",
+			Unknown: "#7d7d7d",
+			none: "#dddddd"
 		}
 		var colorScales = {
-			Windows: d3.scale.linear().domain([0, 100]).range(["#e0e0e0", colors.Windows]),
-			macOS: d3.scale.linear().domain([0, 100]).range(["#e0e0e0", colors.macOS]),
-			Linux: d3.scale.linear().domain([0, 100]).range(["#e0e0e0", colors.Linux]),
-			ChromeOS: d3.scale.linear().domain([0, 100]).range(["#e0e0e0", colors.ChromeOS]),
-			Other: d3.scale.linear().domain([0, 100]).range(["#e0e0e0", colors.Other]),
-			Unknown: d3.scale.linear().domain([0, 100]).range(["#e0e0e0", colors.Unknown])
+			Windows: d3.scale.linear().domain([0, 100]).range([colors.none, colors.Windows]),
+			macOS: d3.scale.linear().domain([0, 100]).range([colors.none, colors.macOS]),
+			Linux: d3.scale.linear().domain([0, 100]).range([colors.none, colors.Linux]),
+			ChromeOS: d3.scale.linear().domain([0, 100]).range([colors.none, colors.ChromeOS]),
+			Other: d3.scale.linear().domain([0, 100]).range([colors.none, colors.Other]),
+			Unknown: d3.scale.linear().domain([0, 100]).range([colors.none, colors.Unknown])
 		};
 
 		// ###############
@@ -80,8 +219,8 @@
 
 		const createMap = (osType) => {
 			var projection = d3.geo.mercator()
-								.center([20, 55])
-								.scale(550)
+								.center([13, 57])
+								.scale(500)
 								.translate([width/2, height/2]);
 
 			var path = d3.geo.path()
@@ -97,10 +236,14 @@
 			d3.json("europe.json", (error, europe) => {
 				var mapData = topojson.feature(europe, europe.objects.europe);
 
-				// Remove Israel and Faoe Islands from data
+				// Remove Israel and Faroe Islands from data
 				mapData.features = mapData.features.filter((country) => {
 					return (country.id != "IL" && country.id != "FO");
 				});
+
+				for(var i=0; i<mapData.features.length; i++){
+					countryArray.push({id: mapData.features[i].id, name: mapData.features[i].properties.NAME});
+				}
 
 				var countries = svg.selectAll("path.country")
 								.data(mapData.features)
@@ -108,10 +251,11 @@
 								.append("path")
 								.attr("class", "country")
 								.attr("id", (d) => { return d.id; })
+								.attr("name", (d) => { return d.properties.NAME; })
 								.attr("d", path)
 								.attr("onclick", function(d){ return `showCountryInfo('${d.id}')`; })
 								.attr("onmouseover", function(d){ return `highlightBar('${d.id}')`; })
-								.attr("onmouseout", "resetBarChart()")
+								.attr("onmouseout", "resetBarChart(); hideHoverBox();")
 								.style("fill", (d) => { 
 									var index = data.findIndex((dataElement) => { return dataElement.Country == d.id; })
 									return colorScales[osType](data[index][osType]) 
@@ -120,128 +264,226 @@
 								.style("stroke-width", 1)
 								.style("stroke-opacity", 1);
 			});
+			createMapScale(osType);
+		}
+
+		const createMapScale = (osType) => {
+			var svgHeight = 150;
+			var svgWidth = 50;
+			var margine = 5;
+
+			var svg = mapDiv.append("svg")
+							.attr("height", svgHeight)
+							.attr("width", svgWidth)
+							.style("background", "transparent")
+							.style("position", "relative")
+							.style("left", `${margine}px`)
+							.style("bottom", `${svgHeight + margine}px`)
+							.style("z-index", 2);
+
+			var gradient = svg.append("defs").append("linearGradient")
+											.attr("id", "scaleGradient")
+											.attr("x1", "0%")
+											.attr("y1", "0%")
+											.attr("x2", "0%")
+											.attr("y2", "100%");
+
+			gradient.append("stop")
+					.attr("offset", "0%")
+					.attr("id", "upperScaleColor")
+					.attr("stop-color", colors[osType]);
+
+			gradient.append("stop")
+					.attr("offset", "100%")
+					.attr("id", "lowerScaleColor")
+					.attr("stop-color", colors.none);
+
+			svg.append("rect")
+				.attr("height", svgHeight - 20)
+				.attr("width", svgWidth - 20)
+				.attr("x", 30)
+				.attr("y", 10)
+				.style("fill", "url(#scaleGradient)")
+				.style("stroke", "url(#scaleGradient)")
+				.style("stroke-width", 1);
+
+			var y = d3.scale.linear()
+					  .range([svgHeight - 10, 10])
+				      .domain([0, 100]);
+
+		    var yAxis = d3.svg.axis()
+							.scale(y)
+							.orient("left")
+					      	.ticks(5);
+
+		    svg.append("g")
+		      	.attr("class", "y axis")
+				.attr("transform", 'translate(30, 0)')
+		      	.call(yAxis);
 		}
 
 		const createPieChart = (countryID) => {
+			if(countryID != europeData.Country) {
 				var countryObj = data.filter((dataElement) => { return dataElement.Country == countryID })[0];
-				var outerRadius = 150;
-				var innerRadius = 100;
-				
-				var countryData = [];
-				for(var i=0; i<osTypes.length; i++){
-					countryData.push({ name: osTypes[i], value: countryObj[osTypes[i]] });
-				}
+				var title = countryArray.filter((country) => { return countryID == country.id; })[0].name;
+			}
+			else {
+				var countryObj = europeData;
+				var title = "Europe";
+			}
+			var outerRadius = 200;
+			var innerRadius = 125;
+
+			var countryData = [];
+			for(var i=0; i<osTypes.length; i++){
+				countryData.push({ name: osTypes[i], value: countryObj[osTypes[i]] });
+			}
 	
-				var arc = d3.svg.arc()
-							.innerRadius(innerRadius)
-							.outerRadius(outerRadius);
+			var arc = d3.svg.arc()
+						.innerRadius(innerRadius)
+						.outerRadius(outerRadius);
 
-				var pie = d3.layout.pie().sort(null).value(function(d) { return d.value; });
+			var pie = d3.layout.pie().sort(null).value(function(d) { return d.value; });
 
-				var svg = pieDiv.append("svg")
-								.attr("width", width)
-								.attr("height", height);
+			var svg = pieDiv.append("svg")
+							.attr("width", width)
+							.attr("height", height);
 
-				var pieArcs = svg.selectAll("g.pie")
-								.data(pie(countryData))
-								.enter()
-								.append("g")
-								.attr("class", "pie")
-								.attr("transform", "translate(" + (width / 2) + ", " + (height/4) + ")");
+			var pieArcs = svg.selectAll("g.pie")
+							.data(pie(countryData))
+							.enter()
+							.append("g")
+							.attr("class", "pie")
+							.attr("onmousemove", function(d) { return `showHoverBox(event, ${d.value.toFixed(2)})`; })
+							.attr("onmouseout", "hideHoverBox()")
+							.attr("transform", "translate(" + (width / 2) + ", " + (height/2) + ")");
 
-				pieArcs.append("path")
-						.attr("fill", function(d, i) { return colors[osTypes[i]]; })
-						.transition()
-						.delay(function(d, i){
-							return i * 850;
-						})
-						.duration(function(d) { return 750; })
-						.attrTween("d", function(d) {
-							var i = d3.interpolate(d.startAngle, d.endAngle);
-							return function(t) {
-								d.endAngle = i(t);
-								return arc(d);
-							}
-						});
+			pieArcs.append("path")
+					.style("fill", function(d, i) { return colors[osTypes[i]]; })
+					.style("stroke", "white")
+					.style("stroke-width", 2)
+					.transition()
+					.delay(function(d, i){
+						return i * 850;
+					})
+					.duration(function(d) { return 750; })
+					.attrTween("d", function(d) {
+						var i = d3.interpolate(d.startAngle, d.endAngle);
+						return function(t) {
+							d.endAngle = i(t);
+							return arc(d);
+						}
+					});
+
+			svg.append("text")
+				.attr("class", "pieTitle")
+				.attr("x", 15)
+				.attr("y", 30)
+				.attr("fill", "black")
+				.text(title);
+
+			svg.selectAll(".dots")
+  				.data(countryData)
+  				.enter()
+  				.append("circle")
+				.attr("class", "dots")
+    			.attr("cx", 20)
+    			.attr("cy", function(d,i){ return 60 + i*25})
+    			.attr("r", 7)
+    			.style("fill", function(d){ return colors[d.name]; })
+
+			svg.selectAll(".labels")
+  				.data(countryData)
+  				.enter()
+  				.append("text")
+				.attr("class", "labels")
+    			.attr("x", 40)
+    			.attr("y", function(d,i){ return 65 + i*25})
+    			.style("fill", "black")
+    			.text(function(d){ return d.name});
 		}
 
 		const createBarChart = (osType) => {
-			    var margin = { top: 40, bottom: 70, left: 40, right: 20 };
-			    var chartWidth = 2*width - margin.left - margin.right;
-			    var chartHeight = height/2 - margin.top - margin.bottom;
-			    var barPadding = 4;
-			    var barWidth = chartWidth / data.length - barPadding;
-				data.sort((a, b) => { return a[osType] - b[osType]; }).reverse();
-	
-			    var x = d3.scale.ordinal()
-						  .rangeBands([0, chartWidth])
-					      .domain(data.map(function(d) { return d.Country; }));
+		    var margin = { top: 40, bottom: 70, left: 40, right: 20 };
+		    var chartWidth = 2*width - margin.left - margin.right;
+		    var chartHeight = height/2 - margin.top - margin.bottom;
+		    var barPadding = 4;
+		    var barWidth = chartWidth / data.length - barPadding;
+			data.sort((a, b) => { return a[osType] - b[osType]; }).reverse();
 
-			    var y = d3.scale.linear()
-						  .range([chartHeight, 0])
-					      .domain([0, 100]);
+		    var x = d3.scale.ordinal()
+					  .rangeBands([0, chartWidth])
+				      .domain(data.map(function(d) { return d.Country; }));
 
-			    var svg = barDiv.append("svg")
-						      	.attr("width", chartWidth + margin.left + margin.right)
-						      	.attr("height", chartHeight + margin.bottom + margin.top)
-						      	.attr("id", "Barchart")
-								.append("g")
-						      	.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+		    var y = d3.scale.linear()
+					  .range([chartHeight, 0])
+				      .domain([0, 100]);
 
-			    var barchart = svg.selectAll("rect")
-							      	.data(data)
-							      	.enter()
-							      	.append("rect")
-									.attr("id", function(d) { return `${d.Country}-Bar` })
-							      	.attr("x", function(d) { return x(d.Country); })
-							      	.attr("width", barWidth)
-							      	.attr("fill", colors[osType])
-							      	.attr("y", chartHeight)
-									.attr("height", 0);
+		    var svg = barDiv.append("svg")
+					      	.attr("width", chartWidth + margin.left + margin.right)
+					      	.attr("height", chartHeight + margin.bottom + margin.top)
+					      	.attr("id", "Barchart")
+							.append("g")
+					      	.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-				barchart.transition()
-						.duration(1000)
-						.attr("y", function(d) { return y(d[osType]); })
-						.attr("height", function(d) { return chartHeight - y(d[osType]); });
+		    var barchart = svg.selectAll("rect")
+						      	.data(data)
+						      	.enter()
+						      	.append("rect")
+								.attr("id", function(d) { return `${d.Country}-Bar` })
+								.attr("class", "bar")
+								.attr("onmousemove", function(d) { return `showHoverBox(event, ${d[osType].toFixed(2)})`; })
+								.attr("onmouseout", "hideHoverBox()")
+								.attr("onclick", function(d){ return `showCountryInfo('${d.Country}')`; })
+						      	.attr("x", function(d) { return x(d.Country); })
+						      	.attr("width", barWidth)
+						      	.attr("fill", colors[osType])
+						      	.attr("y", chartHeight)
+								.attr("height", 0);
 
+			barchart.transition()
+					.duration(1000)
+					.attr("y", function(d) { return y(d[osType]); })
+					.attr("height", function(d) { return chartHeight - y(d[osType]); });
 
-			    var xAxis = d3.svg.axis()
-								.scale(x)
-								.orient("bottom");
+		    var xAxis = d3.svg.axis()
+							.scale(x)
+							.orient("bottom");
 
-			    var yAxis = d3.svg.axis()
-								.scale(y)
-								.orient("left")
-						      	.ticks(20);
+		    var yAxis = d3.svg.axis()
+							.scale(y)
+							.orient("left")
+					      	.ticks(10);
 
-			    svg.append("g")
-			      	.attr("class", "x axis")
-			      	.attr("transform", "translate(0," + chartHeight + ")")
-   				  	.call(xAxis);
+		    svg.append("g")
+		      	.attr("class", "x axis")
+		      	.attr("transform", "translate(0," + chartHeight + ")")
+  			  	.call(xAxis);
 
-				svg.append("text")
-			    	.attr("x", chartWidth / 2)
-			    	.attr("y", chartHeight + (margin.bottom / 2))
-					.attr("dy", ".71em")
-			      	.style("text-anchor", "middle")
-			      	.text("Country");
+			svg.append("text")
+				.attr("class", "axisText")
+		    	.attr("x", chartWidth / 2)
+		    	.attr("y", chartHeight + (margin.bottom / 2))
+				.attr("dy", ".71em")
+		      	.style("text-anchor", "middle")
+		      	.text("Country");
 
-			    svg.append("g")
-			      	.attr("class", "y axis")
-			      	.call(yAxis);
+		    svg.append("g")
+		      	.attr("class", "y axis")
+		      	.call(yAxis);
 
-			    svg.append("text")
-			      	.attr("transform", "rotate(-90)")
-			      	.attr("x", 0-(chartHeight / 2))
-			      	.attr("y", 0-margin.left)
-				  	.attr("dy", ".71em")
-			      	.style("text-anchor", "middle")
-			      	.text("Usage");
-
+		    svg.append("text")
+				.attr("class", "axisText")
+		      	.attr("transform", "rotate(-90)")
+		      	.attr("x", 0-(chartHeight / 2))
+		      	.attr("y", 0-margin.left)
+			  	.attr("dy", ".71em")
+		      	.style("text-anchor", "middle")
+		      	.text("Market share");
 		}
 
 		const showSelectedFilter = (osType) => {
-			mapDiv.select("svg").selectAll("path.country")
+			d3.select("#Map").selectAll("path.country")
 								.style("fill", (d) => { 
 									var index = data.findIndex((dataElement) => { return dataElement.Country == d.id; })
 									return colorScales[osType](data[index][osType]) 
@@ -249,13 +491,28 @@
 								.style("stroke", "white")
 								.style("stroke-width", 1)
 								.style("stroke-opacity", 1);
+			d3.select("#upperScaleColor").attr("stop-color", colors[osType]);
 			document.getElementById("barDiv").innerHTML = "";
 			createBarChart(osType);
 			currOsType = osType;
 		}
 
+		const showHoverBox = (event, value) => {
+			var x = event.clientX;
+			var y = event.clientY;
+			var xOffset = window.pageXOffset;
+			var yOffset = window.pageYOffset;
+			var box = document.getElementById("hoverBox");
+			box.innerHTML = value;
+			box.style = `position: absolute; top: ${y + yOffset}px; left: ${x + 15 + xOffset}px; z-index: 3; display: block;`;
+		}
+
+		const hideHoverBox = () => {
+			var box = document.getElementById("hoverBox");
+			box.style = "display: none;";
+		}
+
 		const zoomOnCountry = (countryID) => {
-			var country = data.find((d) => { return d.Country == countryID });
 			var path = document.getElementById(countryID);
 			var heightScale = height/path.getBBox().height;
 			var widthScale = width/path.getBBox().width;
@@ -265,6 +522,9 @@
 			}
 			else{
 				scale = widthScale;
+			}
+			if(scale > 1200){
+				scale = 1200;
 			}
 			var x, y;
 			x = (width/2) - path.getBBox().x - (path.getBBox().width/2);
@@ -285,7 +545,7 @@
 		const highlightBar = (countryID) => {
 			var svg = d3.select("#Barchart");
 			svg.selectAll("rect")
-				.attr("fill", "#dddddd");
+				.attr("fill", colors.none);
 			d3.select(`#${countryID}-Bar`)
 				.attr("fill", colors[currOsType]);
 		}
@@ -298,12 +558,14 @@
 
 		const showCountryInfo = (countryID) => {
 			if(!countryClicked){
-				zoomOnCountry(countryID);
+				zoomOnCountry(countryID);	
+				document.getElementById("pieDiv").innerHTML = "";
 				createPieChart(countryID);
 			}
 			else{
 				zoomOut();
 				document.getElementById("pieDiv").innerHTML = "";
+				createPieChart(europeData.Country);
 			}
 			countryClicked = !countryClicked;
 		}
@@ -314,12 +576,41 @@
 			return responsePromise;
 		}
 
+		const calculateEuropeData = () => {
+			var windowsSum = 0;
+			var macOSSum = 0;
+			var linuxSum = 0;
+			var chromeOSSum = 0;
+			var otherSum = 0;
+			var unknownSum = 0;
+			for(var i=0; i<data.length; i++){
+				windowsSum += data[i].Windows;
+				macOSSum += data[i].macOS;
+				linuxSum += data[i].Linux;
+				chromeOSSum += data[i].ChromeOS;
+				otherSum += data[i].Other;
+				unknownSum += data[i].Unknown;
+			}
+			var length = data.length;
+			europeData = {
+				Country: "EUR",
+				Windows: windowsSum/length,
+				macOS: macOSSum/length,
+				Linux: linuxSum/length,
+				ChromeOS: chromeOSSum/length,
+				Other: otherSum/length,
+				Unknown: unknownSum/length
+			}
+		}
+
 		const render = async () => {
 			var responseData = getJsonData();
 			await responseData.then(
 				(value) => { data = value; },
 				(error) => { console.log(error); }
 			);
+			calculateEuropeData();
+			createPieChart(europeData.Country);
 			createMap("Windows");
 			createBarChart("Windows");
 		}
@@ -329,7 +620,8 @@
 		// ###############
 
 		render();
-	
+		document.getElementById("Windows-radio").checked = true;
+		window.addEventListener("scroll", () => { hideHoverBox(); });
 	</script>
 </body>
 </html>
