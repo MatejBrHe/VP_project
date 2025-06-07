@@ -346,6 +346,7 @@
 			var pie = d3.layout.pie().sort(null).value(function(d) { return d.value; });
 
 			var svg = pieDiv.append("svg")
+							.attr("id", "PieChart")
 							.attr("width", width)
 							.attr("height", height);
 
@@ -422,7 +423,7 @@
 		    var svg = barDiv.append("svg")
 					      	.attr("width", chartWidth + margin.left + margin.right)
 					      	.attr("height", chartHeight + margin.bottom + margin.top)
-					      	.attr("id", "Barchart")
+					      	.attr("id", "BarChart")
 							.append("g")
 					      	.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
@@ -482,6 +483,14 @@
 		      	.text("Market share");
 		}
 
+		const destroyPieChart = () => {
+			document.getElementById("pieDiv").replaceChildren();
+		}
+
+		const destroyBarChart = () => {
+			document.getElementById("barDiv").replaceChildren();
+		}
+
 		const showSelectedFilter = (osType) => {
 			d3.select("#Map").selectAll("path.country")
 								.style("fill", (d) => { 
@@ -492,7 +501,7 @@
 								.style("stroke-width", 1)
 								.style("stroke-opacity", 1);
 			d3.select("#upperScaleColor").attr("stop-color", colors[osType]);
-			document.getElementById("barDiv").innerHTML = "";
+			destroyBarChart();
 			createBarChart(osType);
 			currOsType = osType;
 		}
@@ -543,7 +552,7 @@
 		}
 
 		const highlightBar = (countryID) => {
-			var svg = d3.select("#Barchart");
+			var svg = d3.select("#BarChart");
 			svg.selectAll("rect")
 				.attr("fill", colors.none);
 			d3.select(`#${countryID}-Bar`)
@@ -551,7 +560,7 @@
 		}
 
 		const resetBarChart = () => {
-			var svg = d3.select("#Barchart");
+			var svg = d3.select("#BarChart");
 			svg.selectAll("rect")
 				.attr("fill", colors[currOsType]);
 		}
@@ -559,12 +568,12 @@
 		const showCountryInfo = (countryID) => {
 			if(!countryClicked){
 				zoomOnCountry(countryID);	
-				document.getElementById("pieDiv").innerHTML = "";
+				destroyPieChart();
 				createPieChart(countryID);
 			}
 			else{
 				zoomOut();
-				document.getElementById("pieDiv").innerHTML = "";
+				destroyPieChart();
 				createPieChart(europeData.Country);
 			}
 			countryClicked = !countryClicked;
