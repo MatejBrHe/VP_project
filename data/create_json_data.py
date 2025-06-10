@@ -6,7 +6,7 @@ df = pd.DataFrame(columns=[ "Date", "Windows", "OS X", "Linux", "Unknown", "macO
 for i in range(len(countries)):
   # Učitaj iz csv datoteke
   data = pd.read_csv(f'csv_dir/os_combined-{countries[i]}-monthly-202404-202504.csv')
-  # 12. redak ima najnovije podatke iz Travnja 2025.
+  # 12. redak ima najnovije podatke iz travnja 2025.
   df.loc[len(df)] = data.iloc[12]
 
 # Zamjeni sve NaN sa 0
@@ -26,6 +26,7 @@ df = df.drop(["Chrome OS"], axis=1)
 # Dodaj id države u dataframe
 df["Country"] = countries
 
+# Prebaci DataFrame u json
 json_data = df.to_json(orient="records")
 
 # Spremi u json datoteku

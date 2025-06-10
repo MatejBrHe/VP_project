@@ -94,6 +94,7 @@
 			margin-left: 25px;
 		}
 
+		/* Custom radio buttons: https://www.w3schools.com/howto/howto_css_custom_checkbox.asp */
 		.radio {
 			opacity: 0;
 			position: absolute;
@@ -281,6 +282,7 @@
 							.style("bottom", `${svgHeight + margine}px`)
 							.style("z-index", 2);
 
+			// Get a gradient color in svg: https://www.w3schools.com/graphics/svg_grad_linear.asp
 			var gradient = svg.append("defs").append("linearGradient")
 											.attr("id", "scaleGradient")
 											.attr("x1", "0%")
@@ -359,6 +361,7 @@
 							.attr("onmouseout", "hideHoverBox()")
 							.attr("transform", "translate(" + (width / 2) + ", " + (height/2) + ")");
 
+			// Animate a pie chart: https://codepen.io/kostadraganov/pen/MWqmKgW
 			pieArcs.append("path")
 					.style("fill", function(d, i) { return colors[osTypes[i]]; })
 					.style("stroke", "white")
@@ -383,6 +386,7 @@
 				.attr("fill", "black")
 				.text(title);
 
+			// Add a legend: https://d3-graph-gallery.com/graph/custom_legend.html
 			svg.selectAll(".dots")
   				.data(countryData)
   				.enter()
@@ -427,6 +431,7 @@
 							.append("g")
 					      	.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+			// Animate a bar chart: https://d3-graph-gallery.com/graph/barplot_animation_start.html
 		    var barchart = svg.selectAll("rect")
 						      	.data(data)
 						      	.enter()
